@@ -11,7 +11,7 @@ namespace EELE565_Parallel_Image_Filter
 {
     class Program
     {
-        const int numThreads = 1;
+        const int numThreads = 4;
 
         static Thread[] threadArr;
 
@@ -73,7 +73,7 @@ namespace EELE565_Parallel_Image_Filter
 
                 Console.WriteLine("Thread {0}: columns {1} through {2}", i, start_x, end_x);
 
-                threadArr[i] = new Thread(() => filter(start_x, 0, end_x, height));
+                threadArr[i] = new Thread(() => filter((Bitmap)bitmap_in.Clone(), start_x, 0, end_x, height));
             }
 
             /* start threads */            
@@ -99,7 +99,7 @@ namespace EELE565_Parallel_Image_Filter
             
         }
 
-        static void filter(int start_x, int start_y, int end_x, int end_y)
+        static void filter(Bitmap bitmap_in_clone, int start_x, int start_y, int end_x, int end_y)
         {
             int x, y,   // image coordinates
                 fx, fy, // filter image coordinates
@@ -137,7 +137,7 @@ namespace EELE565_Parallel_Image_Filter
                             fy = (y - filterHeight / 2 + j + height) % height;
 
                             /* get input pixel in RGB array */
-                            pixel = bitmap_in.GetPixel(fx, fy);
+                            pixel = bitmap_in_clone.GetPixel(fx, fy);
 
                             /* crunch the numbers */
                             RGBout[0] += (byte)(pixel.R * kernel[i, j]);

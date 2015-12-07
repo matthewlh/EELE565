@@ -6,17 +6,23 @@ using System.Threading.Tasks;
 using System.Drawing;
 using System.Diagnostics;
 using System.Threading;
+using System.IO;
 
 namespace EELE565_Parallel_Image_Filter
 {
     class Program
     {
-        const int numThreads = 4;
+        const int numThreads = 8;
 
         static Thread[] threadArr;
 
-        public static Bitmap bitmap_in,
-                      bitmap_out;
+        static Bitmap bitmapIn, bitmapOut;
+        static byte[] byteArrIn,
+                      byteArrOut;
+
+
+        static IntPtr ptr;
+        static int bytes;
 
         static int width, height;
 
@@ -50,17 +56,27 @@ namespace EELE565_Parallel_Image_Filter
 
         static void Main(string[] args)
         {
+            /* start timing */
+            Stopwatch stopwatch = Stopwatch.StartNew();
+
             /* local vars */
             int i;
 
+            /* open image */
             Console.WriteLine("Opening image and setting things up...");
-            bitmap_in = new Bitmap(@"../../Pluto-Wide-FINAL-9-17-15.jpg");
-            //bitmap_in = new Bitmap(@"../../photo3.jpg");
-            width = bitmap_in.Width;
-            height = bitmap_in.Height;
+            //bitmapIn = new Bitmap(@"C: \Users\ssel\Google Drive\MLH_Ultra Docs\EELE 565 Parallel Processing\Project\IMG_8882.TIF");
+            bitmapIn = new Bitmap(@"../../Pluto-Wide-FINAL-9-17-15.jpg");
+            //bitmapIn = new Bitmap(@"../../photo3.jpg");
+            bitmapOut = (Bitmap)bitmapIn.Clone();
 
-            /* create output bitmap of same size */
-            bitmap_out = new Bitmap(width, height);
+            width = bitmapIn.Width;
+            height = bitmapIn.Height;
+            
+            /* convert image to byte[] */
+            bitmapToByte();
+
+            /* create output byte array of same size as input */
+            byteArrOut = new byte[byteArrIn.Count()];
 
             /* create threads */
             threadArr = new Thread[numThreads];
@@ -73,48 +89,46 @@ namespace EELE565_Parallel_Image_Filter
 
                 Console.WriteLine("Thread {0}: columns {1} through {2}", i, start_x, end_x);
 
-                threadArr[i] = new Thread(() => filter((Bitmap)bitmap_in.Clone(), start_x, 0, end_x, height));
-            }
+                threadArr[i] = new Thread(() => filter(start_x, 0, end_x, height));
 
-            /* start threads */            
-            Stopwatch stopwatch = Stopwatch.StartNew();
-            for (i = 0; i < numThreads; i++)
-            {
+                /* start thread */
                 threadArr[i].Start();
             }
 
-            /* sync threads */
+            /* wait for all worker threads to complete */
             for (i = 0; i < numThreads; i++)
             {
                 threadArr[i].Join();
             }
-            stopwatch.Stop();
-
-            Console.WriteLine("Runtime: {0} seconds for {1} threads", 
-                stopwatch.ElapsedMilliseconds / 1000.0, numThreads);
 
             /* save output bitmap */
             Console.WriteLine("Saving output image");
-            bitmap_out.Save(@"../../output.jpg", bitmap_in.RawFormat);
-            
+            arrayToBitmap();
+            bitmapOut.Save(@"../../output.jpg");
+
+            /* stop timing */
+            stopwatch.Stop();
+            Console.WriteLine("Runtime: {0} seconds for {1} threads", 
+                stopwatch.ElapsedMilliseconds / 1000.0, numThreads);
+
         }
 
-        static void filter(Bitmap bitmap_in_clone, int start_x, int start_y, int end_x, int end_y)
+        static void filter(int start_x, int start_y, int end_x, int end_y)
         {
             int x, y,   // image coordinates
                 fx, fy, // filter image coordinates
                 i, j;   // filter coordinates
 
-            byte[]  RGBin  = new byte[3] { 0, 0, 0 },
-                    RGBout = new byte[3] { 0, 0, 0 };
+            byte[]  RGBout = new byte[3] { 0, 0, 0 };
 
-            Color pixel;
-                    
+            int index;
+            byte R, G, B;
+
 
             /* for each pixel in the image */
-            for(x = start_x; x < end_x; x++)
+            for (x = start_x; x < end_x; x++)
             {
-                for(y = start_y; y < end_y; y++)
+                for (y = start_y; y < end_y; y++)
                 {
                     /* reset output RGB array */
                     RGBout[0] = 0;
@@ -127,33 +141,76 @@ namespace EELE565_Parallel_Image_Filter
                         for (j = 0; j < filterHeight; j++)
                         {
                             /* check for zero in kernal */
-                            if(0.0 == kernel[i, j])
+                            if (0.0 == kernel[i, j])
                             {
                                 continue;
                             }
 
                             /* determine pixel coordinate of input image corosponding to filter coordinate */
-                            fx = (x -  filterWidth / 2 + i + width ) % width;
+                            fx = (x - filterWidth / 2 + i + width) % width;
                             fy = (y - filterHeight / 2 + j + height) % height;
 
-                            /* get input pixel in RGB array */
-                            pixel = bitmap_in_clone.GetPixel(fx, fy);
+                            /* get index of fx,fy in array */
+                            index = (fx + fy*width)*3;
 
                             /* crunch the numbers */
-                            RGBout[0] += (byte)(pixel.R * kernel[i, j]);
-                            RGBout[1] += (byte)(pixel.G * kernel[i, j]);
-                            RGBout[2] += (byte)(pixel.B * kernel[i, j]);
+                            RGBout[0] += (byte)(byteArrIn[index    ] * kernel[i, j]);
+                            RGBout[1] += (byte)(byteArrIn[index + 1] * kernel[i, j]);
+                            RGBout[2] += (byte)(byteArrIn[index + 2] * kernel[i, j]);
                         }
                     }
 
-                    /* write new RGB value to output pixel */
-                    pixel = Color.FromArgb(RGBout[0], RGBout[1], RGBout[2]);
-                    bitmap_out.SetPixel(x, y, pixel);
+                    /* write new RGB value to output array */
+                    index = (x + y*width)*3;
+                    byteArrOut[index    ] = RGBout[0];
+                    byteArrOut[index + 1] = RGBout[1];
+                    byteArrOut[index + 2] = RGBout[2];
 
                 }
             }
         }
 
+        static void bitmapToByte()
+        {
+            Rectangle rect;
+            System.Drawing.Imaging.BitmapData bmpData;
+
+            /* lock bits to speedup access */
+            rect = new Rectangle(0, 0, width, height);
+            bmpData = bitmapIn.LockBits(rect, System.Drawing.Imaging.ImageLockMode.ReadOnly, bitmapIn.PixelFormat);
+
+            /* Get the address of the first line. */
+            ptr = bmpData.Scan0;
+
+            /* Declare an array to hold the bytes of the bitmap. */
+            bytes = Math.Abs(bmpData.Stride) * bitmapIn.Height;
+            byteArrIn = new byte[bytes];
+
+            /* Copy the RGB values into the array. */
+            System.Runtime.InteropServices.Marshal.Copy(ptr, byteArrIn, 0, bytes);
+
+            /* unlock bits */
+            bitmapIn.UnlockBits(bmpData);
+        }
+
+        static void arrayToBitmap()
+        {
+            Rectangle rect;
+            System.Drawing.Imaging.BitmapData bmpData;
+
+            /* lock bits to speedup access */
+            rect = new Rectangle(0, 0, width, height);
+            bmpData = bitmapOut.LockBits(rect, System.Drawing.Imaging.ImageLockMode.WriteOnly, bitmapOut.PixelFormat);
+
+            /* Get the address of the first line. */
+            ptr = bmpData.Scan0;
+
+            /* Copy the RGB values back to the bitmap */
+            System.Runtime.InteropServices.Marshal.Copy(byteArrOut, 0, ptr, bytes);
+
+            /* Unlock the bits. */
+            bitmapOut.UnlockBits(bmpData);
+        }
 
     }
 }

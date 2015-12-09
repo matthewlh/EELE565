@@ -115,7 +115,7 @@ namespace EELE565_Parallel_Image_Filter
             if (debug)
                 Console.WriteLine("Saving output image");
             arrayToBitmap();
-            bitmapOut.Save(@"../../output.jpg");
+            bitmapOut.Save(@"../../output.TIF");
 
             /* stop timing */
             stopwatch.Stop();

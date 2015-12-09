@@ -74,8 +74,6 @@ namespace EELE565_Parallel_Image_Filter
                 Console.WriteLine("Opening image and setting things up...");
 
             bitmapIn = new Bitmap(@"C:\Users\ssel\Google Drive\MLH_Ultra Docs\EELE 565 Parallel Processing\Project\IMG_8882.TIF");
-            //bitmapIn = new Bitmap(@"../../Pluto-Wide-FINAL-9-17-15.jpg");
-            //bitmapIn = new Bitmap(@"../../photo3.jpg");
             bitmapOut = (Bitmap)bitmapIn.Clone();
 
             width = bitmapIn.Width;

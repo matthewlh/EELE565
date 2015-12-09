@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{60D540E8-647D-482C-A58D-507F2AC0FDC3}</ProjectGuid>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>EELE565_Parallel_Image_Filter</RootNamespace>
     <AssemblyName>EELE565_Parallel_Image_Filter</AssemblyName>

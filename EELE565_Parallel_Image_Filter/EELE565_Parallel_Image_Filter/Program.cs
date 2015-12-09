@@ -7,19 +7,19 @@ using System.Drawing;
 using System.Diagnostics;
 using System.Threading;
 using System.IO;
+using System.Collections;
 
 namespace EELE565_Parallel_Image_Filter
 {
     class Program
     {
-        const int numThreads = 8;
-
         static Thread[] threadArr;
 
-        static Bitmap bitmapIn, bitmapOut;
-        static byte[] byteArrIn,
-                      byteArrOut;
+        static Bitmap   bitmapIn, 
+                        bitmapOut;
 
+        static short[]  intArrIn,
+                        intArrOut;
 
         static IntPtr ptr;
         static int bytes;
@@ -27,10 +27,10 @@ namespace EELE565_Parallel_Image_Filter
         static int width, height;
 
         const int filterWidth = 16,
-                    filterHeight = 16;
+                  filterHeight = 16;
 
         const double k = 1.0 / (16 + 15);
-        
+
         static double[,] kernel =
         {
             {0.0, 0.0, 0.0,  0.0, 0.0, 0.0, 0.0,   k,  0.0, 0.0, 0.0, 0.0,  0.0, 0.0, 0.0, 0.0},
@@ -56,6 +56,13 @@ namespace EELE565_Parallel_Image_Filter
 
         static void Main(string[] args)
         {
+            RunTest(8, true);
+
+            Debugger.Break();
+        }
+
+        static double RunTest(int numThreads, bool debug)
+        {
             /* start timing */
             Stopwatch stopwatch = Stopwatch.StartNew();
 
@@ -63,31 +70,34 @@ namespace EELE565_Parallel_Image_Filter
             int i;
 
             /* open image */
-            Console.WriteLine("Opening image and setting things up...");
-            //bitmapIn = new Bitmap(@"C: \Users\ssel\Google Drive\MLH_Ultra Docs\EELE 565 Parallel Processing\Project\IMG_8882.TIF");
-            bitmapIn = new Bitmap(@"../../Pluto-Wide-FINAL-9-17-15.jpg");
+            if (debug)
+                Console.WriteLine("Opening image and setting things up...");
+
+            bitmapIn = new Bitmap(@"C:\Users\ssel\Google Drive\MLH_Ultra Docs\EELE 565 Parallel Processing\Project\IMG_8882.TIF");
+            //bitmapIn = new Bitmap(@"../../Pluto-Wide-FINAL-9-17-15.jpg");
             //bitmapIn = new Bitmap(@"../../photo3.jpg");
             bitmapOut = (Bitmap)bitmapIn.Clone();
 
             width = bitmapIn.Width;
             height = bitmapIn.Height;
-            
+
             /* convert image to byte[] */
             bitmapToByte();
 
             /* create output byte array of same size as input */
-            byteArrOut = new byte[byteArrIn.Count()];
+            intArrOut = new short[intArrIn.Count()];
 
             /* create threads */
             threadArr = new Thread[numThreads];
-            for(i = 0; i < numThreads; i++)
+            for (i = 0; i < numThreads; i++)
             {
                 int start_x, end_x;
 
                 start_x = i * width / numThreads;
-                end_x   = (i +1) * width / numThreads;
+                end_x = (i + 1) * width / numThreads;
 
-                Console.WriteLine("Thread {0}: columns {1} through {2}", i, start_x, end_x);
+                if (debug)
+                    Console.WriteLine("Thread {0}: columns {1} through {2}", i, start_x, end_x);
 
                 threadArr[i] = new Thread(() => filter(start_x, 0, end_x, height));
 
@@ -102,14 +112,18 @@ namespace EELE565_Parallel_Image_Filter
             }
 
             /* save output bitmap */
-            Console.WriteLine("Saving output image");
+            if (debug)
+                Console.WriteLine("Saving output image");
             arrayToBitmap();
             bitmapOut.Save(@"../../output.jpg");
 
             /* stop timing */
             stopwatch.Stop();
-            Console.WriteLine("Runtime: {0} seconds for {1} threads", 
-                stopwatch.ElapsedMilliseconds / 1000.0, numThreads);
+            if (debug)
+                Console.WriteLine("Runtime: {0} seconds for {1} threads",
+                    stopwatch.ElapsedMilliseconds / 1000.0, numThreads);
+
+            return stopwatch.ElapsedMilliseconds / 1000.0;
 
         }
 
@@ -119,11 +133,9 @@ namespace EELE565_Parallel_Image_Filter
                 fx, fy, // filter image coordinates
                 i, j;   // filter coordinates
 
-            byte[]  RGBout = new byte[3] { 0, 0, 0 };
+            double[] RGBout = new double[3] { 0, 0, 0 };
 
             int index;
-            byte R, G, B;
-
 
             /* for each pixel in the image */
             for (x = start_x; x < end_x; x++)
@@ -151,20 +163,20 @@ namespace EELE565_Parallel_Image_Filter
                             fy = (y - filterHeight / 2 + j + height) % height;
 
                             /* get index of fx,fy in array */
-                            index = (fx + fy*width)*3;
+                            index = (fx + fy * width) * 3;
 
                             /* crunch the numbers */
-                            RGBout[0] += (byte)(byteArrIn[index    ] * kernel[i, j]);
-                            RGBout[1] += (byte)(byteArrIn[index + 1] * kernel[i, j]);
-                            RGBout[2] += (byte)(byteArrIn[index + 2] * kernel[i, j]);
+                            RGBout[0] += (((int)intArrIn[index] + 32768) * kernel[i, j]);
+                            RGBout[1] += (((int)intArrIn[index + 1] + 32768) * kernel[i, j]);
+                            RGBout[2] += (((int)intArrIn[index + 2] + 32768) * kernel[i, j]);
                         }
                     }
 
                     /* write new RGB value to output array */
-                    index = (x + y*width)*3;
-                    byteArrOut[index    ] = RGBout[0];
-                    byteArrOut[index + 1] = RGBout[1];
-                    byteArrOut[index + 2] = RGBout[2];
+                    index = (x + y * width) * 3;
+                    intArrOut[index] = (short)(RGBout[0] - 32768);
+                    intArrOut[index + 1] = (short)(RGBout[1] - 32768);
+                    intArrOut[index + 2] = (short)(RGBout[2] - 32768);
 
                 }
             }
@@ -183,11 +195,11 @@ namespace EELE565_Parallel_Image_Filter
             ptr = bmpData.Scan0;
 
             /* Declare an array to hold the bytes of the bitmap. */
-            bytes = Math.Abs(bmpData.Stride) * bitmapIn.Height;
-            byteArrIn = new byte[bytes];
+            bytes = Math.Abs(bmpData.Stride) * bitmapIn.Height / 2;
+            intArrIn = new short[bytes];
 
             /* Copy the RGB values into the array. */
-            System.Runtime.InteropServices.Marshal.Copy(ptr, byteArrIn, 0, bytes);
+            System.Runtime.InteropServices.Marshal.Copy(ptr, intArrIn, 0, bytes);
 
             /* unlock bits */
             bitmapIn.UnlockBits(bmpData);
@@ -206,7 +218,7 @@ namespace EELE565_Parallel_Image_Filter
             ptr = bmpData.Scan0;
 
             /* Copy the RGB values back to the bitmap */
-            System.Runtime.InteropServices.Marshal.Copy(byteArrOut, 0, ptr, bytes);
+            System.Runtime.InteropServices.Marshal.Copy(intArrOut, 0, ptr, bytes);
 
             /* Unlock the bits. */
             bitmapOut.UnlockBits(bmpData);

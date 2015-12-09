@@ -1,13 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Drawing;
 using System.Diagnostics;
 using System.Threading;
-using System.IO;
-using System.Collections;
 
 namespace EELE565_Parallel_Image_Filter
 {
@@ -56,7 +51,7 @@ namespace EELE565_Parallel_Image_Filter
 
         static void Main(string[] args)
         {
-            RunTest(1000, true);
+            RunTest(1024, true);
 
             Debugger.Break();
         }

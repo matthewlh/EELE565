@@ -51,7 +51,7 @@ namespace EELE565_Parallel_Image_Filter
 
         static void Main(string[] args)
         {
-            RunTest(1024, true);
+            RunTest(8, true);
 
             Debugger.Break();
         }

@@ -147,6 +147,15 @@ namespace EELE565_Parallel_Image_Filter
                     RGBout[1] = 0;
                     RGBout[2] = 0;
 
+                    if (((start_x * 8 / width) % 2) == 1)
+                    {
+                        index = (x + y * width) * 3;
+                        intArrOut[index] = intArrIn[index];
+                        intArrOut[index + 1] = intArrIn[index + 1];
+                        intArrOut[index + 2] = intArrIn[index + 2];
+                        continue;
+                    }
+
                     /* for each filter element */
                     for (i = 0; i < filterWidth; i++)
                     {
